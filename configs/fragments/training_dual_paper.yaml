@@ -21,7 +21,7 @@ training:
   problem_type: dual
 wandb:
   enabled: false
-  project: icl-extended
+  project: when-context-sticks
   entity: local
   log_every_steps: 100
 out_dir: artifacts/runs/placeholder

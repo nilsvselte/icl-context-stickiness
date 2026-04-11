@@ -20,7 +20,7 @@ training:
       interval: 2000
 wandb:
   enabled: false
-  project: icl-extended
+  project: when-context-sticks
   entity: local
   log_every_steps: 100
 out_dir: artifacts/runs/placeholder

@@ -70,12 +70,18 @@ def train(model, args, task_labeler):
     history_path = os.path.join(args.out_dir, "history.jsonl")
 
     starting_step = 0
+    loss_total = 0.0
+    loss_count = 0
+    excess_loss_total = 0.0
     state_path = os.path.join(args.out_dir, "state.pt")
     if os.path.exists(state_path):
         state = torch.load(state_path)
         model.load_state_dict(state["model_state_dict"])
         optimizer.load_state_dict(state["optimizer_state_dict"])
         starting_step = state["train_step"]
+        loss_total = state.get("loss_total", 0.0)
+        loss_count = state.get("loss_count", 0)
+        excess_loss_total = state.get("excess_loss_total", 0.0)
         for i in range(state["train_step"] + 1):
             curriculum.update()
 
@@ -146,6 +152,9 @@ def train(model, args, task_labeler):
             "n_points": curriculum.n_points,
             "n_dims": curriculum.n_dims_truncated,
         }
+        loss_total += loss
+        excess_loss_total += log_payload["excess_loss"]
+        loss_count += 1
         should_log = (
             i % args.wandb.log_every_steps == 0 or i == args.training.train_steps - 1
         )
@@ -171,6 +180,9 @@ def train(model, args, task_labeler):
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "train_step": i,
+                "loss_total": loss_total,
+                "loss_count": loss_count,
+                "excess_loss_total": excess_loss_total,
             }
             torch.save(training_state, state_path)
 
@@ -182,12 +194,17 @@ def train(model, args, task_labeler):
         ):
             torch.save(model.state_dict(), os.path.join(args.out_dir, f"model_{i}.pt"))
 
-    return last_summary or {
+    summary = last_summary or {
         "step": starting_step,
         "overall_loss": None,
         "n_points": curriculum.n_points,
         "n_dims": curriculum.n_dims_truncated,
     }
+    summary["average_loss"] = loss_total / loss_count if loss_count else None
+    summary["average_excess_loss"] = (
+        excess_loss_total / loss_count if loss_count else None
+    )
+    return summary
 
 
 def train_dual_curriculum(model, args, task_labeler):
@@ -195,6 +212,9 @@ def train_dual_curriculum(model, args, task_labeler):
     curriculum = Curriculum(args.training.curriculum)
     history_path = os.path.join(args.out_dir, "history.jsonl")
     starting_step = 0
+    loss_total = 0.0
+    loss_count = 0
+    excess_loss_total = 0.0
     state_path = os.path.join(args.out_dir, "state.pt")
     mode = args.training.curriculum_type
 
@@ -203,6 +223,9 @@ def train_dual_curriculum(model, args, task_labeler):
         model.load_state_dict(state["model_state_dict"])
         optimizer.load_state_dict(state["optimizer_state_dict"])
         starting_step = state["train_step"]
+        loss_total = state.get("loss_total", 0.0)
+        loss_count = state.get("loss_count", 0)
+        excess_loss_total = state.get("excess_loss_total", 0.0)
         for i in range(state["train_step"] + 1):
             curriculum.update()
 
@@ -311,6 +334,9 @@ def train_dual_curriculum(model, args, task_labeler):
             "n_dims": curriculum.n_dims_truncated,
             "curriculum_type": mode,
         }
+        loss_total += loss
+        excess_loss_total += log_payload["excess_loss"]
+        loss_count += 1
         should_log = (
             i % args.wandb.log_every_steps == 0 or i == args.training.train_steps - 1
         )
@@ -336,6 +362,9 @@ def train_dual_curriculum(model, args, task_labeler):
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "train_step": i,
+                "loss_total": loss_total,
+                "loss_count": loss_count,
+                "excess_loss_total": excess_loss_total,
             }
             torch.save(training_state, state_path)
 
@@ -347,13 +376,18 @@ def train_dual_curriculum(model, args, task_labeler):
         ):
             torch.save(model.state_dict(), os.path.join(args.out_dir, f"model_{i}.pt"))
 
-    return last_summary or {
+    summary = last_summary or {
         "step": starting_step,
         "overall_loss": None,
         "n_points": curriculum.n_points,
         "n_dims": curriculum.n_dims_truncated,
         "curriculum_type": mode,
     }
+    summary["average_loss"] = loss_total / loss_count if loss_count else None
+    summary["average_excess_loss"] = (
+        excess_loss_total / loss_count if loss_count else None
+    )
+    return summary
 
 
 def main(args, task_labeler):

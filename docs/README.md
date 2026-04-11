@@ -3,9 +3,9 @@
 The supported workflow now lives in:
 
 - `README.md` for the main setup and reproduction commands
-- `docs/icl_extended.md` for the figure-by-figure paper mapping
+- `docs/when_context_sticks.md` for the paper table-and-figure mapping
 - `configs/` for maintained experiment specs
-- `src/cs182_project/` for the packaged CLI/orchestration layer
+- `src/when_context_sticks/` for the packaged CLI/orchestration layer
 
 The research core remains in `src/`:
 
@@ -30,5 +30,5 @@ Generated outputs should go under `artifacts/`, not `src/results/` or ad hoc run
 
 - Add new experiment YAMLs under `configs/`, not `src/conf/`.
 - Keep `wandb.enabled: false` by default for reproducible configs.
-- Prefer extending the packaged CLI in `src/cs182_project/` rather than adding new shell scripts.
+- Prefer extending the packaged CLI in `src/when_context_sticks/` rather than adding new shell scripts.
 - Add tests or smoke coverage before relying on a new training/evaluation path.

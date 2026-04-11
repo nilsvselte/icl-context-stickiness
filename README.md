@@ -1,34 +1,38 @@
-# CS182 ICL Reproduction
+# When Context Sticks: Studying Interference in In-Context Learning
 
-This repository reproduces the experiments in [ICL_extended-8.pdf](./ICL_extended-8.pdf), our CS182 paper on context stickiness in in-context learning for linear and quadratic regression tasks.
+This repository is the maintained reproduction entrypoint for our paper *When Context Sticks: Studying Interference in In-Context Learning*.
 
-The maintained workflow is:
+The experiments build on the synthetic linear and quadratic regression setup introduced in:
+
+Shivam Garg, Dimitris Tsipras, Percy Liang, and Gregory Valiant. *What Can Transformers Learn In-Context? A Case Study of Simple Function Classes.* 2022.
+
+The configs, commands, tables, and figures here are organized around our paper and its context-switching results.
+
+The supported workflow is:
 
 1. `uv` for environment management
 2. script-first experiment entrypoints
 3. deterministic configs under `configs/`
 4. generated outputs under `artifacts/`
-5. pytest + CI smoke checks so the repo does not drift into “works on my machine”
+5. tests plus CI smoke coverage so the repo stays reproducible on a fresh clone
 
-`eval.ipynb` and the plotting notebooks are still useful for exploration, but the CLI below is the authoritative reproduction path.
-
-![](setting.jpg)
+The CLI below is the authoritative reproduction path.
 
 ## Quick Start
 
 ```bash
 uv sync --extra dev
 uv run pytest
-uv run icl-paper smoke
+uv run icl-paper smoke --device cpu
 ```
 
-The smoke command trains tiny CPU models for all three curricula, runs a tiny A/B evaluation, and writes manifests, CSVs, and plots under `artifacts/smoke/`.
+The smoke workflow trains tiny CPU models for all three curricula, runs a tiny A/B evaluation grid, and writes manifests, CSVs, and paper-style figures under `artifacts/smoke/`.
 
-## Reproducing `ICL_extended-8.pdf`
+## Full Reproduction
 
-### Architecture Sweep
+Full paper-scale reproduction is a GPU workflow. The supported artifact root is `artifacts/paper/when_context_sticks/`.
 
-Section 6 uses three linear-only architecture configs.
+### Table 1 and Table 2
 
 ```bash
 uv run icl-paper arch-sweep --device cuda
@@ -36,8 +40,11 @@ uv run icl-paper arch-sweep --device cuda
 
 Outputs:
 
-- `artifacts/paper/icl_extended/arch_sweep/run_manifest.json`
-- `artifacts/paper/icl_extended/arch_sweep/summary.csv`
+- `artifacts/paper/when_context_sticks/arch_sweep/run_manifest.json`
+- `artifacts/paper/when_context_sticks/table_1_architecture_sweep.csv`
+- `artifacts/paper/when_context_sticks/table_2_hyperparameters.csv`
+
+`table_1_architecture_sweep.csv` reports the architecture sweep with average loss over training and the final loss for each model size.
 
 ### Train the Three Curricula
 
@@ -47,7 +54,7 @@ uv run icl-paper train-curricula --device cuda
 
 Output:
 
-- `artifacts/paper/icl_extended/run_manifest.json`
+- `artifacts/paper/when_context_sticks/run_manifest.json`
 
 ### Evaluate Both Switch Directions
 
@@ -57,12 +64,12 @@ uv run icl-paper eval-switch --device cuda --trials 1000
 
 Outputs:
 
-- `artifacts/paper/icl_extended/results/*_linear_to_quadratic_mean.csv`
-- `artifacts/paper/icl_extended/results/*_linear_to_quadratic_sem.csv`
-- `artifacts/paper/icl_extended/results/*_quadratic_to_linear_mean.csv`
-- `artifacts/paper/icl_extended/results/*_quadratic_to_linear_sem.csv`
+- `artifacts/paper/when_context_sticks/results/*_linear_to_quadratic_mean.csv`
+- `artifacts/paper/when_context_sticks/results/*_linear_to_quadratic_sem.csv`
+- `artifacts/paper/when_context_sticks/results/*_quadratic_to_linear_mean.csv`
+- `artifacts/paper/when_context_sticks/results/*_quadratic_to_linear_sem.csv`
 
-### Regenerate Figures
+### Regenerate the Paper Figures
 
 ```bash
 uv run icl-paper plot-paper
@@ -70,15 +77,22 @@ uv run icl-paper plot-paper
 
 Outputs:
 
-- `artifacts/paper/icl_extended/figures/*.png`
+- `artifacts/paper/when_context_sticks/figures/figure_1_overall_3d_error_surfaces.png`
+- `artifacts/paper/when_context_sticks/figures/figure_2_recovery_curves.png`
+- `artifacts/paper/when_context_sticks/figures/figure_3_stickiness_curves.png`
+- `artifacts/paper/when_context_sticks/figures/figure_4_sequential_error_vs_quadratic_examples.png`
+- `artifacts/paper/when_context_sticks/figures/figure_5_sequential_switch_comparison.png`
+- `artifacts/paper/when_context_sticks/figures/figure_6_mixed_random_switch_comparison.png`
 
-### End-to-End
+### End to End
 
 ```bash
 uv run icl-paper all --device cuda --trials 1000
 ```
 
-## Single-Run Commands
+This runs the architecture sweep, writes both paper tables, trains the three curricula, evaluates both switch directions, and regenerates all six paper figures.
+
+## Single-Run Debugging
 
 Train one config:
 
@@ -98,26 +112,28 @@ uv run icl-eval-ab \
 ## Repository Layout
 
 - `configs/` maintained experiment configs
-- `src/cs182_project/` packaged CLI and orchestration code
+- `src/when_context_sticks/` packaged CLI and paper orchestration
 - `src/` core model, training, task, and evaluation logic
 - `artifacts/` generated runs, CSVs, figures, and manifests
-- `docs/icl_extended.md` figure-to-command mapping for the paper
+- `docs/when_context_sticks.md` table-and-figure reproduction map
 - `tests/` unit tests and smoke coverage
 
 ## Reproducibility Notes
 
 - `uv` with Python 3.10 is the only supported environment path.
-- W&B is optional and disabled by default in the supported configs.
+- W&B is optional and disabled by default in the maintained configs.
 - Each run writes `config.yaml`, `history.jsonl`, `state.pt`, and `summary.json`.
-- The supported paper workflow is from scratch only; it does not rely on hosted checkpoints.
+- The architecture sweep summary uses average loss over training so the reported table matches the intended paper metric.
+- The supported workflow is from scratch only; it does not depend on pre-hosted checkpoints.
 
-## Citation
+## Citation Basis
+
+This repository reuses the experimental setup introduced by Garg et al. for synthetic in-context linear and quadratic regression. If you describe the provenance of the setup, cite that paper directly:
 
 ```bibtex
-@InProceedings{garg2022what,
+@article{garg2022what,
   title={What Can Transformers Learn In-Context? A Case Study of Simple Function Classes},
-  author={Shivam Garg and Dimitris Tsipras and Percy Liang and Gregory Valiant},
-  year={2022},
-  booktitle={arXiv preprint}
+  author={Garg, Shivam and Tsipras, Dimitris and Liang, Percy and Valiant, Gregory},
+  year={2022}
 }
 ```

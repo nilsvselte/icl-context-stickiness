@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from cs182_project.runtime import parse_int_list, write_overlay_config
+from when_context_sticks.runtime import parse_int_list, write_overlay_config
 
 
 def test_parse_int_list():

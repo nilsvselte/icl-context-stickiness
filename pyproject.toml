@@ -1,7 +1,7 @@
 [project]
-name = "cs182-project"
+name = "when-context-sticks"
 version = "0.1.0"
-description = "Reproducible training and evaluation code for the CS182 ICL interference study."
+description = "Reproducible code for When Context Sticks: Studying Interference in In-Context Learning."
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
@@ -28,9 +28,9 @@ dev = [
 ]
 
 [project.scripts]
-icl-train = "cs182_project.cli:train_main"
-icl-eval-ab = "cs182_project.cli:eval_ab_main"
-icl-paper = "cs182_project.cli:paper_main"
+icl-train = "when_context_sticks.cli:train_main"
+icl-eval-ab = "when_context_sticks.cli:eval_ab_main"
+icl-paper = "when_context_sticks.cli:paper_main"
 
 [build-system]
 requires = ["setuptools>=69", "wheel"]
@@ -41,7 +41,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["cs182_project*"]
+include = ["when_context_sticks*"]
 
 [tool.uv.extra-build-dependencies]
 pyyaml = ["cython<3"]
@@ -54,8 +54,6 @@ extend-exclude = [
     "*.ipynb",
     "src/eval.py",
     "src/models.py",
-    "src/plot_utils.py",
-    "src/run_dual_eval.py",
 ]
 
 [tool.ruff.lint]
