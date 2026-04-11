@@ -121,7 +121,9 @@ uv run icl-eval-ab \
 ## Reproducibility Notes
 
 - `uv` with Python 3.10 is the only supported environment path.
+- The supported GPU path uses the pinned `torch==2.5.1` dependency so `uv sync --extra dev` works on current CUDA GPUs such as NVIDIA L4.
 - W&B is optional and disabled by default in the maintained configs.
+- `WANDB_PROJECT` and `WANDB_ENTITY` can be used to override the default online logging destination without editing configs.
 - Each run writes `config.yaml`, `history.jsonl`, `state.pt`, and `summary.json`.
 - The architecture sweep summary uses average loss over training so the reported table matches the intended paper metric.
 - The supported workflow is from scratch only; it does not depend on pre-hosted checkpoints.

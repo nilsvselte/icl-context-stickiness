@@ -400,10 +400,14 @@ def main(args, task_labeler):
         curriculum_args.dims.start = curriculum_args.dims.end
         args.training.train_steps = 100
     if bool(getattr(args.wandb, "enabled", True)) and not args.test_run:
+        wandb_project = os.getenv("WANDB_PROJECT") or args.wandb.project
+        wandb_entity = os.getenv("WANDB_ENTITY") or args.wandb.entity
+        if wandb_entity in {"", "local"}:
+            wandb_entity = None
         wandb.init(
             dir=args.out_dir,
-            project=args.wandb.project,
-            entity=args.wandb.entity,
+            project=wandb_project,
+            entity=wandb_entity,
             config=args.__dict__,
             notes=args.wandb.notes,
             name=args.wandb.name,

@@ -70,8 +70,8 @@ training_schema = {
 
 wandb_schema = {
     "enabled": merge(tboolean, default(True)),
-    "project": merge(tstring, default("in-context-training")),
-    "entity": merge(tstring, default("in-context")),
+    "project": merge(tstring, default("when-context-sticks")),
+    "entity": merge(tstring, nullable, default(None)),
     "notes": merge(tstring, default("")),
     "name": merge(tstring, nullable, default(None)),
     "log_every_steps": merge(tinteger, default(10)),

@@ -22,7 +22,7 @@ training:
 wandb:
   enabled: false
   project: when-context-sticks
-  entity: local
+  entity: null
   log_every_steps: 100
 out_dir: artifacts/runs/placeholder
 seed: 0

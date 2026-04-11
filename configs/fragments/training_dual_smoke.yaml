@@ -21,8 +21,8 @@ training:
   problem_type: dual
 wandb:
   enabled: false
-  project: icl-smoke
-  entity: local
+  project: when-context-sticks
+  entity: null
   log_every_steps: 1
 out_dir: artifacts/runs/placeholder
 seed: 0
