@@ -68,7 +68,7 @@ def get_task_sampler(
         "quadratic_regression": QuadraticRegression,
         "relu_2nn_regression": Relu2nnRegression,
         "decision_tree": DecisionTree,
-        "dual_task": DualTask
+        "dual_task": DualTask,
     }
     if task_name in task_names_to_classes:
         task_cls = task_names_to_classes[task_name]
@@ -85,7 +85,7 @@ def get_task_sampler(
 class DualTask(Task):
     task_label = "dual_task"
 
-    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, split = None):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, split=None):
         super(DualTask, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.task1 = LinearRegression(n_dims, batch_size, pool_dict, seeds)
         self.task2 = QuadraticRegression(n_dims, batch_size, pool_dict, seeds)
@@ -101,13 +101,12 @@ class DualTask(Task):
     @staticmethod
     def get_metric():
         return squared_error
-        
+
     @staticmethod
     def get_training_metric():
-        raise NotImplementedError("DualTask does not implement a single training metric.")
-
-
-
+        raise NotImplementedError(
+            "DualTask does not implement a single training metric."
+        )
 
 
 class LinearRegression(Task):
@@ -152,6 +151,7 @@ class LinearRegression(Task):
 
 class SparseLinearRegression(LinearRegression):
     task_label = "sparse_linear"
+
     def __init__(
         self,
         n_dims,
@@ -322,13 +322,12 @@ class DecisionTree(Task):
     task_label = "decision_tree"
 
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, depth=4):
-
         super(DecisionTree, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.depth = depth
 
         if pool_dict is None:
-
-            # We represent the tree using an array (tensor). Root node is at index 0, its 2 children at index 1 and 2...
+            # We represent the tree using an array. Root is at index 0 and
+            # children follow the standard binary-heap layout.
             # dt_tensor stores the coordinate used at each node of the decision tree.
             # Only indices corresponding to non-leaf nodes are relevant
             self.dt_tensor = torch.randint(
@@ -340,7 +339,7 @@ class DecisionTree(Task):
             self.target_tensor = torch.randn(self.dt_tensor.shape)
         elif seeds is not None:
             self.dt_tensor = torch.zeros(batch_size, 2 ** (depth + 1) - 1)
-            self.target_tensor = torch.zeros_like(dt_tensor)
+            self.target_tensor = torch.zeros_like(self.dt_tensor)
             generator = torch.Generator()
             assert len(seeds) == self.b_size
             for i, seed in enumerate(seeds):

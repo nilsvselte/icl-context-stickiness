@@ -1,0 +1,6 @@
+inherit:
+  - ../../fragments/model_small.yaml
+  - ../../fragments/training_linear_arch.yaml
+
+wandb:
+  name: arch_small

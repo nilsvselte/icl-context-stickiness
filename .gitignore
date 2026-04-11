@@ -1,5 +1,7 @@
-# pycache
 __pycache__/
-
-# trained
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+artifacts/
 models/

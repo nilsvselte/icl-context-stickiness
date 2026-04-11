@@ -1,0 +1,30 @@
+training:
+  task: linear_regression
+  data: gaussian
+  task_kwargs: {}
+  batch_size: 2
+  learning_rate: 0.0001
+  save_every_steps: 1
+  keep_every_steps: -1
+  train_steps: 4
+  curriculum:
+    dims:
+      start: 2
+      end: 2
+      inc: 0
+      interval: 1
+    points:
+      start: 5
+      end: 5
+      inc: 0
+      interval: 1
+  problem_type: dual
+wandb:
+  enabled: false
+  project: icl-smoke
+  entity: local
+  log_every_steps: 1
+out_dir: artifacts/runs/placeholder
+seed: 0
+device: cpu
+compute_metrics_on_finish: false

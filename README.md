@@ -1,64 +1,123 @@
-This repository contains the code and models for our paper:
+# CS182 ICL Reproduction
 
-**What Can Transformers Learn In-Context? A Case Study of Simple Function Classes** <br>
-*Shivam Garg\*, Dimitris Tsipras\*, Percy Liang, Gregory Valiant* <br>
-Paper: http://arxiv.org/abs/2208.01066 <br><br>
+This repository reproduces the experiments in [ICL_extended-8.pdf](./ICL_extended-8.pdf), our CS182 paper on context stickiness in in-context learning for linear and quadratic regression tasks.
 
-This repository adapts the Garg et al. setup for our CS 182 project, focusing on linear and quadratic in-context learning. The project code and experiments here were written by Nils Valseth Selte, Dagny Streit, Justin Lee, and Hanna Rod.
+The maintained workflow is:
+
+1. `uv` for environment management
+2. script-first experiment entrypoints
+3. deterministic configs under `configs/`
+4. generated outputs under `artifacts/`
+5. pytest + CI smoke checks so the repo does not drift into “works on my machine”
+
+`eval.ipynb` and the plotting notebooks are still useful for exploration, but the CLI below is the authoritative reproduction path.
 
 ![](setting.jpg)
 
-```bibtex
-    @InProceedings{garg2022what,
-        title={What Can Transformers Learn In-Context? A Case Study of Simple Function Classes},
-        author={Shivam Garg and Dimitris Tsipras and Percy Liang and Gregory Valiant},
-        year={2022},
-        booktitle={arXiv preprint}
-    }
+## Quick Start
+
+```bash
+uv sync --extra dev
+uv run pytest
+uv run icl-paper smoke
 ```
 
-## Getting started
-You can start by cloning our repository and following the steps below.
+The smoke command trains tiny CPU models for all three curricula, runs a tiny A/B evaluation, and writes manifests, CSVs, and plots under `artifacts/smoke/`.
 
-1. Install the dependencies for our code using Conda. You may need to adjust the environment YAML file depending on your setup.
+## Reproducing `ICL_extended-8.pdf`
 
-    ```
-    conda env create -f environment.yml
-    conda activate in-context-learning
-    conda install "mkl<2024"
-    ```
+### Architecture Sweep
 
-2. Download [model checkpoints](https://github.com/dtsip/in-context-learning/releases/download/initial/models.zip) and extract them in the current directory.
+Section 6 uses three linear-only architecture configs.
 
-    ```
-    wget https://github.com/dtsip/in-context-learning/releases/download/initial/models.zip
-    unzip models.zip
-    ```
+```bash
+uv run icl-paper arch-sweep --device cuda
+```
 
-3. [Optional] If you plan to train, populate `conf/wandb.yaml` with you wandb info.
+Outputs:
 
-That's it! You can now explore our pre-trained models or train your own. The key entry points
-are as follows (starting from `src`):
-- The `eval.ipynb` notebook contains code to load our own pre-trained models, plot the pre-computed metrics, and evaluate them on new data.
-- `train.py` takes as argument a configuration yaml from `conf` and trains the corresponding model. You can try `uv run python train.py --config conf/toy.yaml` for a quick linear run, or `uv run python train.py --config conf/toy-quadratic.yaml` for a quadratic toy run.
-- `run_sweep.sh` trains three GPT-2 sizes on linear regression (`conf/linear_sweep/*`).
-- `run_sweep_curriculum.sh` trains linear+quadratic dual curricula (`conf/dual_sweep/*`).
-- `run_dual_eval.py` sweeps A/B context lengths for the dual-task checkpoints and writes CSVs to `src/results/`.
+- `artifacts/paper/icl_extended/arch_sweep/run_manifest.json`
+- `artifacts/paper/icl_extended/arch_sweep/summary.csv`
 
-If you prefer not to use `uv`, activate your environment and replace `uv run python ...` with `python ...`.
+### Train the Three Curricula
 
-## Linear ↔ Quadratic A/B Study
-We added scripts to probe how transformers transfer between linear and quadratic functions under different curricula.
+```bash
+uv run icl-paper train-curricula --device cuda
+```
 
-**Training**
-- Single baseline dual run: from `src/`, `uv run python train.py --config conf/training_dual_task.yaml` (`training.problem_type: dual`, `curriculum_type: random`).
-- Curriculum sweeps: `bash run_sweep_curriculum.sh` trains sequential, mixed, and random dual curricula (checkpoints in `models/dual_*`).
-- Linear-only baselines: `bash run_sweep.sh` runs the three linear regression configs in `conf/linear_sweep/`.
+Output:
 
-**Evaluation**
-- After training, set the run IDs in `src/run_dual_eval.py`'s `models` dict and run `uv run python run_dual_eval.py`.
-- The script evaluates both orders (linear context → quadratic query, and vice versa) across A/B context lengths, saving mean/SEM CSVs under `src/results/`.
+- `artifacts/paper/icl_extended/run_manifest.json`
 
-# Maintainers
-* [Shivam Garg](https://cs.stanford.edu/~shivamg/)
-* [Dimitris Tsipras](https://dtsipras.com/)
+### Evaluate Both Switch Directions
+
+```bash
+uv run icl-paper eval-switch --device cuda --trials 1000
+```
+
+Outputs:
+
+- `artifacts/paper/icl_extended/results/*_linear_to_quadratic_mean.csv`
+- `artifacts/paper/icl_extended/results/*_linear_to_quadratic_sem.csv`
+- `artifacts/paper/icl_extended/results/*_quadratic_to_linear_mean.csv`
+- `artifacts/paper/icl_extended/results/*_quadratic_to_linear_sem.csv`
+
+### Regenerate Figures
+
+```bash
+uv run icl-paper plot-paper
+```
+
+Outputs:
+
+- `artifacts/paper/icl_extended/figures/*.png`
+
+### End-to-End
+
+```bash
+uv run icl-paper all --device cuda --trials 1000
+```
+
+## Single-Run Commands
+
+Train one config:
+
+```bash
+uv run icl-train --config configs/paper/switch_study/dual_random.yaml --device cuda
+```
+
+Evaluate one run directory on one switch direction:
+
+```bash
+uv run icl-eval-ab \
+  --run-dir artifacts/runs/paper/switch_study/dual_random/<run-id> \
+  --direction linear_to_quadratic \
+  --output-dir artifacts/manual_eval
+```
+
+## Repository Layout
+
+- `configs/` maintained experiment configs
+- `src/cs182_project/` packaged CLI and orchestration code
+- `src/` core model, training, task, and evaluation logic
+- `artifacts/` generated runs, CSVs, figures, and manifests
+- `docs/icl_extended.md` figure-to-command mapping for the paper
+- `tests/` unit tests and smoke coverage
+
+## Reproducibility Notes
+
+- `uv` with Python 3.10 is the only supported environment path.
+- W&B is optional and disabled by default in the supported configs.
+- Each run writes `config.yaml`, `history.jsonl`, `state.pt`, and `summary.json`.
+- The supported paper workflow is from scratch only; it does not rely on hosted checkpoints.
+
+## Citation
+
+```bibtex
+@InProceedings{garg2022what,
+  title={What Can Transformers Learn In-Context? A Case Study of Simple Function Classes},
+  author={Shivam Garg and Dimitris Tsipras and Percy Liang and Gregory Valiant},
+  year={2022},
+  booktitle={arXiv preprint}
+}
+```

@@ -1,8 +1,10 @@
+import json
 import os
 import random
 import uuid
 from random import randint
 
+import numpy as np
 import torch
 import wandb
 import yaml
@@ -17,9 +19,33 @@ from schema import schema
 from task_labeling import TaskLabeler
 from tasks import get_task_sampler
 
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
+
+
+def resolve_device(device_name):
+    if device_name == "cpu":
+        return torch.device("cpu")
+    if device_name == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA was requested but is not available.")
+        return torch.device("cuda")
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def set_random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def append_history(history_path, payload):
+    with open(history_path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
 def train_step(model, xs, ys, optimizer, loss_func):
@@ -41,6 +67,7 @@ def sample_seeds(total_seeds, count):
 def train(model, args, task_labeler):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.training.learning_rate)
     curriculum = Curriculum(args.training.curriculum)
+    history_path = os.path.join(args.out_dir, "history.jsonl")
 
     starting_step = 0
     state_path = os.path.join(args.out_dir, "state.pt")
@@ -66,6 +93,8 @@ def train(model, args, task_labeler):
     pbar = tqdm(range(starting_step, args.training.train_steps))
 
     num_training_examples = args.training.num_training_examples
+    last_summary = None
+    wandb_enabled = bool(getattr(args.wandb, "enabled", True)) and not args.test_run
 
     for i in pbar:
         data_sampler_args = {}
@@ -79,9 +108,7 @@ def train(model, args, task_labeler):
             data_sampler_args["seeds"] = seeds
             task_sampler_args["seeds"] = [s + 1 for s in seeds]
 
-        truncation = task_labeler.augmentation_truncation(
-            curriculum.n_dims_truncated
-        )
+        truncation = task_labeler.augmentation_truncation(curriculum.n_dims_truncated)
         xs = data_sampler.sample_xs(
             curriculum.n_points, bsize, truncation, **data_sampler_args
         )
@@ -112,19 +139,29 @@ def train(model, args, task_labeler):
             / curriculum.n_points
         )
 
-        if i % args.wandb.log_every_steps == 0 and not args.test_run:
-            wandb.log(
-                {
-                    "overall_loss": loss,
-                    "excess_loss": loss / baseline_loss,
-                    "pointwise/loss": dict(
-                        zip(point_wise_tags, point_wise_loss.cpu().numpy())
-                    ),
-                    "n_points": curriculum.n_points,
-                    "n_dims": curriculum.n_dims_truncated,
-                },
-                step=i,
-            )
+        log_payload = {
+            "step": i,
+            "overall_loss": loss,
+            "excess_loss": loss / baseline_loss,
+            "n_points": curriculum.n_points,
+            "n_dims": curriculum.n_dims_truncated,
+        }
+        should_log = (
+            i % args.wandb.log_every_steps == 0 or i == args.training.train_steps - 1
+        )
+        if should_log:
+            append_history(history_path, log_payload)
+            if wandb_enabled:
+                wandb.log(
+                    {
+                        **log_payload,
+                        "pointwise/loss": dict(
+                            zip(point_wise_tags, point_wise_loss.cpu().numpy())
+                        ),
+                    },
+                    step=i,
+                )
+        last_summary = log_payload
 
         curriculum.update()
 
@@ -145,10 +182,18 @@ def train(model, args, task_labeler):
         ):
             torch.save(model.state_dict(), os.path.join(args.out_dir, f"model_{i}.pt"))
 
+    return last_summary or {
+        "step": starting_step,
+        "overall_loss": None,
+        "n_points": curriculum.n_points,
+        "n_dims": curriculum.n_dims_truncated,
+    }
+
 
 def train_dual_curriculum(model, args, task_labeler):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.training.learning_rate)
     curriculum = Curriculum(args.training.curriculum)
+    history_path = os.path.join(args.out_dir, "history.jsonl")
     starting_step = 0
     state_path = os.path.join(args.out_dir, "state.pt")
     mode = args.training.curriculum_type
@@ -169,7 +214,7 @@ def train_dual_curriculum(model, args, task_labeler):
     bsize = args.training.batch_size
 
     data_sampler = get_data_sampler(args.training.data, n_dims=total_dims)
-    
+
     linear_sampler = get_task_sampler(
         "linear_regression",
         feature_dims,
@@ -177,7 +222,7 @@ def train_dual_curriculum(model, args, task_labeler):
         num_tasks=args.training.num_tasks,
         **args.training.task_kwargs,
     )
-    
+
     quadratic_sampler = get_task_sampler(
         "quadratic_regression",
         feature_dims,
@@ -185,10 +230,12 @@ def train_dual_curriculum(model, args, task_labeler):
         num_tasks=args.training.num_tasks,
         **args.training.task_kwargs,
     )
-    
+
     pbar = tqdm(range(starting_step, args.training.train_steps))
 
     num_training_examples = args.training.num_training_examples
+    last_summary = None
+    wandb_enabled = bool(getattr(args.wandb, "enabled", True)) and not args.test_run
 
     for i in pbar:
         if mode == "sequential":
@@ -196,14 +243,14 @@ def train_dual_curriculum(model, args, task_labeler):
                 task_sampler = linear_sampler
             else:
                 task_sampler = quadratic_sampler
-            
+
         elif mode == "random":
             _ = random.random()
             if _ < 0.5:
                 task_sampler = linear_sampler
             else:
                 task_sampler = quadratic_sampler
-                
+
         elif mode == "mixed":
             if i < args.training.train_steps // 2:
                 task_sampler = linear_sampler
@@ -213,7 +260,7 @@ def train_dual_curriculum(model, args, task_labeler):
                     task_sampler = linear_sampler
                 else:
                     task_sampler = quadratic_sampler
-        
+
         data_sampler_args = {}
         task_sampler_args = {}
 
@@ -225,9 +272,7 @@ def train_dual_curriculum(model, args, task_labeler):
             data_sampler_args["seeds"] = seeds
             task_sampler_args["seeds"] = [s + 1 for s in seeds]
 
-        truncation = task_labeler.augmentation_truncation(
-            curriculum.n_dims_truncated
-        )
+        truncation = task_labeler.augmentation_truncation(curriculum.n_dims_truncated)
         xs = data_sampler.sample_xs(
             curriculum.n_points, bsize, truncation, **data_sampler_args
         )
@@ -258,19 +303,30 @@ def train_dual_curriculum(model, args, task_labeler):
             / curriculum.n_points
         )
 
-        if i % args.wandb.log_every_steps == 0 and not args.test_run:
-            wandb.log(
-                {
-                    "overall_loss": loss,
-                    "excess_loss": loss / baseline_loss,
-                    "pointwise/loss": dict(
-                        zip(point_wise_tags, point_wise_loss.cpu().numpy())
-                    ),
-                    "n_points": curriculum.n_points,
-                    "n_dims": curriculum.n_dims_truncated,
-                },
-                step=i,
-            )
+        log_payload = {
+            "step": i,
+            "overall_loss": loss,
+            "excess_loss": loss / baseline_loss,
+            "n_points": curriculum.n_points,
+            "n_dims": curriculum.n_dims_truncated,
+            "curriculum_type": mode,
+        }
+        should_log = (
+            i % args.wandb.log_every_steps == 0 or i == args.training.train_steps - 1
+        )
+        if should_log:
+            append_history(history_path, log_payload)
+            if wandb_enabled:
+                wandb.log(
+                    {
+                        **log_payload,
+                        "pointwise/loss": dict(
+                            zip(point_wise_tags, point_wise_loss.cpu().numpy())
+                        ),
+                    },
+                    step=i,
+                )
+        last_summary = log_payload
 
         curriculum.update()
 
@@ -291,14 +347,25 @@ def train_dual_curriculum(model, args, task_labeler):
         ):
             torch.save(model.state_dict(), os.path.join(args.out_dir, f"model_{i}.pt"))
 
+    return last_summary or {
+        "step": starting_step,
+        "overall_loss": None,
+        "n_points": curriculum.n_points,
+        "n_dims": curriculum.n_dims_truncated,
+        "curriculum_type": mode,
+    }
+
 
 def main(args, task_labeler):
+    global device
+    set_random_seed(args.seed)
+    device = resolve_device(getattr(args, "device", "auto"))
     if args.test_run:
         curriculum_args = args.training.curriculum
         curriculum_args.points.start = curriculum_args.points.end
         curriculum_args.dims.start = curriculum_args.dims.end
         args.training.train_steps = 100
-    else:
+    if bool(getattr(args.wandb, "enabled", True)) and not args.test_run:
         wandb.init(
             dir=args.out_dir,
             project=args.wandb.project,
@@ -313,12 +380,26 @@ def main(args, task_labeler):
     model.to(device)
     model.train()
 
-    if args.training.problem_type != None:
-        train_dual_curriculum(model, args, task_labeler)
+    if args.training.problem_type is not None:
+        summary = train_dual_curriculum(model, args, task_labeler)
     else:
-        train(model, args, task_labeler)
-        
-    if not args.test_run:
+        summary = train(model, args, task_labeler)
+
+    summary_path = os.path.join(args.out_dir, "summary.json")
+    with open(summary_path, "w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                **summary,
+                "device": str(device),
+                "seed": args.seed,
+                "run_name": args.wandb.name,
+            },
+            handle,
+            indent=2,
+            sort_keys=True,
+        )
+
+    if getattr(args, "compute_metrics_on_finish", False) and not args.test_run:
         _ = get_run_metrics(args.out_dir)  # precompute metrics for eval
 
 

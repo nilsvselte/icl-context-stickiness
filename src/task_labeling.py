@@ -65,9 +65,7 @@ class TaskLabeler:
         if not self.enabled:
             return feature_truncation
         if feature_truncation > self.feature_dims:
-            raise ValueError(
-                "Curriculum requested more feature dims than available"
-            )
+            raise ValueError("Curriculum requested more feature dims than available")
         return feature_truncation + self.label_dim
 
     def feature_slice(self, xs):

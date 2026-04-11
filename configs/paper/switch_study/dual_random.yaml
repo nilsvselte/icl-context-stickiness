@@ -1,0 +1,9 @@
+inherit:
+  - ../../fragments/model_medium.yaml
+  - ../../fragments/training_dual_paper.yaml
+
+training:
+  curriculum_type: random
+
+wandb:
+  name: dual_random

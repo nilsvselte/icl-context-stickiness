@@ -1,22 +1,65 @@
 [project]
 name = "cs182-project"
 version = "0.1.0"
-description = "Add your description here"
+description = "Reproducible training and evaluation code for the CS182 ICL interference study."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.11"
 dependencies = [
-    "cython<3",
-    "numpy>=2.2.6",
-    "pandas>=2.3.3",
-    "quinine>=0.3.0",
-    "scikit-learn>=1.7.2",
-    "torch>=2.9.0",
-    "tqdm>=4.67.1",
-    "transformers>=4.57.1",
-    "wandb>=0.23.0",
-    "xgboost>=3.1.1",
+    "funcy==1.15",
+    "matplotlib==3.5.2",
+    "munch==2.5.0",
+    "numpy==1.22.3",
+    "pandas==1.4.2",
+    "protobuf==3.20.1",
+    "pyyaml==5.4",
+    "quinine==0.3.0",
+    "scikit-learn==1.0.2",
+    "torch==1.11.0",
+    "tqdm==4.64.0",
+    "transformers==4.17.0",
+    "wandb==0.12.11",
+    "xgboost==1.6.1",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.4.2",
+    "ruff==0.13.3",
+]
+
+[project.scripts]
+icl-train = "cs182_project.cli:train_main"
+icl-eval-ab = "cs182_project.cli:eval_ab_main"
+icl-paper = "cs182_project.cli:paper_main"
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["cs182_project*"]
 
 [tool.uv.extra-build-dependencies]
 pyyaml = ["cython<3"]
 cytoolz = ["cython<3"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+extend-exclude = [
+    "*.ipynb",
+    "src/eval.py",
+    "src/models.py",
+    "src/plot_utils.py",
+    "src/run_dual_eval.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

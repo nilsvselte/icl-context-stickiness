@@ -1,0 +1,9 @@
+inherit:
+  - ../fragments/model_smoke.yaml
+  - ../fragments/training_dual_smoke.yaml
+
+training:
+  curriculum_type: sequential
+
+wandb:
+  name: smoke_dual_sequential

@@ -217,7 +217,9 @@ def average_task_loss(
     context).
     """
 
-    total_points = n_first_examples + n_second_examples + 1  # +1 for the query placeholder
+    total_points = (
+        n_first_examples + n_second_examples + 1
+    )  # +1 for the query placeholder
 
     losses = []
     with torch.no_grad():

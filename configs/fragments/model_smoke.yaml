@@ -1,0 +1,7 @@
+model:
+  family: gpt2
+  n_dims: 2
+  n_positions: 11
+  n_embd: 32
+  n_layer: 2
+  n_head: 2

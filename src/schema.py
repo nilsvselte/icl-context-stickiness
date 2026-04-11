@@ -1,6 +1,16 @@
 from funcy import merge
-from quinine import (allowed, default, nullable, required, stdict, tboolean,
-                     tdict, tfloat, tinteger, tstring)
+from quinine import (
+    allowed,
+    default,
+    nullable,
+    required,
+    stdict,
+    tboolean,
+    tdict,
+    tfloat,
+    tinteger,
+    tstring,
+)
 
 model_schema = {
     "family": merge(tstring, allowed(["gpt2", "lstm"])),
@@ -27,6 +37,7 @@ TASK_LIST = [
     "linear_regression",
     "sparse_linear_regression",
     "linear_classification",
+    "noisy_linear_regression",
     "relu_2nn_regression",
     "decision_tree",
     "quadratic_regression",
@@ -58,6 +69,7 @@ training_schema = {
 }
 
 wandb_schema = {
+    "enabled": merge(tboolean, default(True)),
     "project": merge(tstring, default("in-context-training")),
     "entity": merge(tstring, default("in-context")),
     "notes": merge(tstring, default("")),
@@ -66,13 +78,9 @@ wandb_schema = {
 }
 
 schema = {
-    "out_dir": merge(tstring, required),
-    "model": stdict(model_schema),
-    "training": stdict(training_schema),
-    "wandb": stdict(wandb_schema),
-    "test_run": merge(tboolean, default(False)),
-}
-schema = {
+    "seed": merge(tinteger, default(0)),
+    "device": merge(tstring, allowed(["auto", "cpu", "cuda"]), default("auto")),
+    "compute_metrics_on_finish": merge(tboolean, default(False)),
     "out_dir": merge(tstring, required),
     "model": stdict(model_schema),
     "training": stdict(training_schema),

@@ -18,7 +18,7 @@ models = {
 A_EXAMPLES = [0, 1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20]
 B_EXAMPLES = [0, 1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20]
 TRIALS = 1000
-SKIP_EXISTING_QUADRATIC_QUERY = True  # Skip rerunning linear-first/quadratic-query evals if files already exist
+SKIP_EXISTING_QUADRATIC_QUERY = True
 
 # Create results directory if it doesn't exist
 os.makedirs(results_dir, exist_ok=True)
@@ -51,7 +51,11 @@ for model_name, model_path in models.items():
         mean_csv = os.path.join(results_dir, f"{model_name}_quadratic_query_mean.csv")
         std_csv = os.path.join(results_dir, f"{model_name}_quadratic_query_sem.csv")
 
-        if SKIP_EXISTING_QUADRATIC_QUERY and os.path.exists(mean_csv) and os.path.exists(std_csv):
+        if (
+            SKIP_EXISTING_QUADRATIC_QUERY
+            and os.path.exists(mean_csv)
+            and os.path.exists(std_csv)
+        ):
             print(f"• Quadratic-query CSVs already exist for {model_name}; skipping rerun.")
             continue
 
